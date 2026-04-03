@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finviz Market Dashboard — Apr 3, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1219;
+    --bg3: #121820;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8edf2;
+    --text2: #7a8a99;
+    --text3: #3d4f5e;
+    --green: #00d68f;
+    --green2: rgba(0,214,143,0.12);
+    --red: #ff4d6a;
+    --red2: rgba(255,77,106,0.12);
+    --blue: #3b8eff;
+    --blue2: rgba(59,142,255,0.12);
+    --amber: #ffb347;
+    --amber2: rgba(255,179,71,0.1);
+    --purple: #a78bfa;
+    --teal: #22d3ee;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,142,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,142,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border2);
+  }
+  .header-left h1 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #e8edf2 0%, #7a8a99 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+  .header-left .sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 6px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .tag {
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .tag-green { background: var(--green2); color: var(--green); border: 1px solid rgba(0,214,143,0.2); }
+  .tag-red   { background: var(--red2);   color: var(--red);   border: 1px solid rgba(255,77,106,0.2); }
+  .tag-blue  { background: var(--blue2);  color: var(--blue);  border: 1px solid rgba(59,142,255,0.2); }
+
+  /* ── METRIC CARDS ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .metric {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .metric:hover { border-color: var(--border2); }
+  .metric::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 8px 8px 0 0;
+  }
+  .metric.m-green::after { background: var(--green); }
+  .metric.m-red::after   { background: var(--red); }
+  .metric.m-blue::after  { background: var(--blue); }
+  .metric.m-amber::after { background: var(--amber); }
+  .metric.m-purple::after { background: var(--purple); }
+  .metric.m-teal::after   { background: var(--teal); }
+  .metric .lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .metric .val { font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1; }
+  .metric .val.green  { color: var(--green); }
+  .metric .val.red    { color: var(--red); }
+  .metric .val.blue   { color: var(--blue); }
+  .metric .val.amber  { color: var(--amber); }
+  .metric .val.purple { color: var(--purple); }
+  .metric .val.teal   { color: var(--teal); }
+  .metric .hint { font-size: 10px; color: var(--text3); margin-top: 6px; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 20px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    width: fit-content;
+  }
+  .tab-btn {
+    padding: 7px 18px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--bg3); }
+  .tab-btn.active { background: var(--blue); color: #fff; font-weight: 500; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── CHART GRID ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .col-span-2 { grid-column: span 2; }
+  .col-span-3 { grid-column: span 3; }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+  .card-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text3);
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .chart-wrap { position: relative; }
+
+  /* ── BAR ROWS ── */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .bar-lbl { width: 170px; text-align: right; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .bar-lbl-left { text-align: left; }
+  .bar-track { flex: 1; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+  .bar-num   { width: 56px; font-size: 11px; color: var(--text2); text-align: right; flex-shrink: 0; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    text-align: left;
+    padding: 7px 10px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border2);
+  }
+  tbody td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  tbody tr:hover td { background: var(--bg3); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .pill-green  { background: var(--green2); color: var(--green); }
+  .pill-red    { background: var(--red2);   color: var(--red); }
+  .pill-blue   { background: var(--blue2);  color: var(--blue); }
+  .pill-amber  { background: var(--amber2); color: var(--amber); }
+  .pill-muted  { background: rgba(255,255,255,0.05); color: var(--text2); }
+
+  /* ── INSIGHT BOX ── */
+  .insight {
+    background: var(--bg3);
+    border-left: 3px solid var(--blue);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  /* ── CORR MATRIX ── */
+  .corr-matrix { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .corr-matrix th { padding: 8px 10px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .corr-matrix td { padding: 8px 10px; text-align: center; border-radius: 3px; font-family: var(--font-mono); }
+
+  /* ── DONUT LEGENDS ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── SCROLL ── */
+  .table-scroll { max-height: 360px; overflow-y: auto; }
+  .table-scroll::-webkit-scrollbar { width: 4px; }
+  .table-scroll::-webkit-scrollbar-track { background: transparent; }
+  .table-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── FOOTER ── */
+  footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 900px) {
+    .metrics { grid-template-columns: repeat(3, 1fr); }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .col-span-2, .col-span-3 { grid-column: span 1; }
+    header { flex-direction: column; gap: 12px; }
+  }
+  @media (max-width: 600px) {
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .page { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+        <h1>Market Snapshot</h1>
+        <div class="sub">Finviz · April 3, 2026 · 14:38 EST · 1000 tickers</div>
+    </div>
+    <div class="header-right">
+      <span class="tag tag-green">529 gainers</span>
+      <span class="tag tag-red">430 losers</span>
+      <span class="tag tag-blue">11 sectors · 29 countries</span>
+    </div>
+  </header>
+
+  <!-- METRIC CARDS -->
+  <div class="metrics">
+    <div class="metric m-blue">
+      <div class="lbl">Universe</div>
+      <div class="val blue">1000</div>
+      <div class="hint">Tickers tracked</div>
+    </div>
+    <div class="metric m-green">
+      <div class="lbl">Gainers</div>
+      <div class="val green">529</div>
+    <div class="hint">52.9% win rate</div>
+    </div>
+    <div class="metric m-red">
+      <div class="lbl">Losers</div>
+      <div class="val red">430</div>
+      <div class="hint">43.0% decline</div>
+    </div>
+    <div class="metric m-amber">
+      <div class="lbl">Top gainer</div>
+      <div class="val amber">42.23%</div>
+      <div class="hint">BDRX · Healthcare</div>
+    </div>
+    <div class="metric m-purple">
+      <div class="lbl">Top loser</div>
+      <div class="val purple">-22.65%</div>
+      <div class="hint">AIIO · Consumer Cyc.</div>
+    </div>
+    <div class="metric m-teal">
+      <div class="lbl">Outliers (|z|>3)</div>
+      <div class="val teal">18 </div>
+      <div class="hint">Extreme movers today</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab-btn" onclick="switchTab('sectors')">Sectors</button>
+    <button class="tab-btn" onclick="switchTab('movers')">Movers</button>
+    <button class="tab-btn" onclick="switchTab('industry')">Industries</button>
+    <button class="tab-btn" onclick="switchTab('pe')">P/E Analysis</button>
+    <button class="tab-btn" onclick="switchTab('outliers')">Outliers</button>
+    <button class="tab-btn" onclick="switchTab('features')">Features</button>
+  </div>
+
+  <!-- ═══ PANEL: OVERVIEW ═══ -->
+  <div id="overview" class="panel active">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Market breadth — gainers vs losers</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="c_breadth"></canvas></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00d68f"></div>Gainers 52.9%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff4d6a"></div>Losers 43.0%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3d4f5e"></div>Flat 3.6%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Market cap distribution</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="c_cap"></canvas></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b8eff"></div>Unknown 35.7%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div>Micro 22.8%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ffb347"></div>Small 18.3%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff4d6a"></div>Mid 13%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>Large 9.1%</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#00d68f"></div>Mega 1.1%</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card col-span-2">
+        <div class="card-title">Price band distribution (ticker count)</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="c_pricebands"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title">Avg % change by cap size</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="c_cap_change"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Penny stocks vs high-priced</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="c_priceseg"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Volatility by price band (std dev %)</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="c_vol_band"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL: SECTORS ═══ -->
+  <div id="sectors" class="panel">
+    <div class="grid-2">
+      <div class="card col-span-2">
+        <div class="card-title">Avg daily % change by sector</div>
+        <div class="chart-wrap" style="height:300px"><canvas id="c_sector_chg"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Win rate (% gainers) by sector</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="c_sector_wr"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ticker count by sector</div>
+        <div id="sector_count_bars" style="margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Avg volume by sector (M shares)</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="c_sector_vol"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL: MOVERS ═══ -->
+  <div id="movers" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Top 10 gainers</div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Ticker</th><th>Company</th><th>Sector</th><th>Price</th><th>Change</th><th>Cap</th></tr></thead>
+            <tbody>
+              <tr><td><b>BDRX</b></td><td>Biodexa Pharma ADR</td><td>Healthcare</td><td>$0.87</td><td><span class="pill pill-green">+42.23%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>AAOX</b></td><td>Tradr 2X Long AAOI ETF</td><td>Financial</td><td>$26.33</td><td><span class="pill pill-green">+40.43%</span></td><td><span class="pill pill-muted">—</span></td></tr>
+              <tr><td><b>AIXI</b></td><td>Xiao-I Corp ADR</td><td>Technology</td><td>$0.13</td><td><span class="pill pill-green">+33.10%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ATPC</b></td><td>Agape ATP Corp</td><td>Consumer Def.</td><td>$3.17</td><td><span class="pill pill-green">+25.79%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ASTX</b></td><td>Tradr 2X Long ASTS ETF</td><td>Financial</td><td>$45.01</td><td><span class="pill pill-green">+20.73%</span></td><td><span class="pill pill-muted">—</span></td></tr>
+              <tr><td><b>AAOI</b></td><td>Applied Optoelectronics</td><td>Technology</td><td>$103.91</td><td><span class="pill pill-green">+20.34%</span></td><td><span class="pill pill-muted">Mid</span></td></tr>
+              <tr><td><b>AERT</b></td><td>Aeries Technology</td><td>Industrials</td><td>$0.48</td><td><span class="pill pill-green">+19.25%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>AIRS</b></td><td>Airsculpt Technologies</td><td>Healthcare</td><td>$3.17</td><td><span class="pill pill-green">+16.12%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>AIB</b></td><td>BlockchAIn Digital Infra</td><td>Technology</td><td>$1.16</td><td><span class="pill pill-green">+16.00%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>AGPU</b></td><td>Axe Compute</td><td>Technology</td><td>$4.07</td><td><span class="pill pill-green">+14.33%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top 10 losers</div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Ticker</th><th>Company</th><th>Sector</th><th>Price</th><th>Change</th><th>Cap</th></tr></thead>
+            <tbody>
+              <tr><td><b>AIIO</b></td><td>Robo.ai</td><td>Consumer Cyc.</td><td>$0.07</td><td><span class="pill pill-red">-22.65%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ASTN</b></td><td>Defiance 2X Short ASTS ETF</td><td>Financial</td><td>$11.68</td><td><span class="pill pill-red">-21.24%</span></td><td><span class="pill pill-muted">—</span></td></tr>
+              <tr><td><b>ARAI</b></td><td>Arrive AI</td><td>Technology</td><td>$0.72</td><td><span class="pill pill-red">-16.25%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ANGO</b></td><td>Angiodynamic</td><td>Healthcare</td><td>$10.31</td><td><span class="pill pill-red">-13.65%</span></td><td><span class="pill pill-muted">Small</span></td></tr>
+              <tr><td><b>ADAG</b></td><td>Adagene ADR</td><td>Healthcare</td><td>$3.99</td><td><span class="pill pill-red">-13.45%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ADTX</b></td><td>Aditxt</td><td>Healthcare</td><td>$0.79</td><td><span class="pill pill-red">-11.72%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>AEHL</b></td><td>Antelope Enterprise</td><td>Industrials</td><td>$1.11</td><td><span class="pill pill-red">-11.20%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ASTC</b></td><td>Astrotech Corp</td><td>Technology</td><td>$3.98</td><td><span class="pill pill-red">-10.56%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>ARTL</b></td><td>Artelo Biosciences</td><td>Healthcare</td><td>$7.04</td><td><span class="pill pill-red">-10.20%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+              <tr><td><b>AGIG</b></td><td>Abundia Global Impact</td><td>Utilities</td><td>$1.22</td><td><span class="pill pill-red">-9.63%</span></td><td><span class="pill pill-muted">Micro</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 10 by volume</div>
+      <div id="vol_bars" style="margin-top:4px"></div>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL: INDUSTRY ═══ -->
+  <div id="industry" class="panel">
+    <div class="insight">Communication Equipment (+4.27%), Oil & Gas E&P (+4.11%), and Entertainment (+3.45%) led. Auto Parts had a 0% win rate across 8 tickers. Building Products, Specialty Retail, and Electrical Equipment all had win rates ≤33%.</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Top 10 industries by avg % change (min 5 tickers)</div>
+        <div id="ind_top_bars" style="margin-top:4px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Bottom 10 industries by avg % change</div>
+        <div id="ind_bot_bars" style="margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Win rate by top industries (%)</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="c_ind_wr"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL: P/E ═══ -->
+  <div id="pe" class="panel">
+    <div class="insight">36 tickers have P/E above the IQR upper fence of 78. Many extreme values (e.g. ANPA at 6,885) reflect near-zero earnings — common in SPACs, shells, and distressed names. These are red flags, not investment signals. ARM (-3.84%) and ABBV (-2.86%) are notable large-cap losers trading at elevated P/E ratios.</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Median P/E by sector</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="c_pe_sector"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">P/E outliers — top 10 (IQR upper fence: 78)</div>
+        <table>
+          <thead><tr><th>Ticker</th><th>Company</th><th>Sector</th><th>P/E</th><th>Price</th><th>Cap</th></tr></thead>
+          <tbody>
+            <tr><td><b>ANPA</b></td><td>Rich Sparkle Holdings</td><td>Industrials</td><td><span class="pill pill-red">6,885</span></td><td>$8.95</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ACR</b></td><td>ACRES Commercial Realty</td><td>Real Estate</td><td><span class="pill pill-red">2,774</span></td><td>$18.86</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>APPN</b></td><td>Appian Corp</td><td>Technology</td><td><span class="pill pill-amber">1,549</span></td><td>$24.47</td><td><span class="pill pill-muted">Small</span></td></tr>
+            <tr><td><b>APAD</b></td><td>A Paradise Acquisition</td><td>Financial</td><td><span class="pill pill-amber">841</span></td><td>$10.17</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>AGCC</b></td><td>Agencia Comercial Spirits</td><td>Consumer Def.</td><td><span class="pill pill-amber">711</span></td><td>$15.49</td><td><span class="pill pill-muted">Small</span></td></tr>
+            <tr><td><b>AACB</b></td><td>Artius II Acquisition</td><td>Financial</td><td><span class="pill pill-amber">659</span></td><td>$10.34</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ASPC</b></td><td>A SPAC III Acquisition</td><td>Financial</td><td><span class="pill pill-amber">447</span></td><td>$10.77</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>BAYA</b></td><td>Bayview Acquisition</td><td>Financial</td><td><span class="pill pill-amber">403</span></td><td>$11.90</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>APLS</b></td><td>Apellis Pharmaceuticals</td><td>Healthcare</td><td><span class="pill pill-amber">327</span></td><td>$40.41</td><td><span class="pill pill-muted">Mid</span></td></tr>
+            <tr><td><b>AXON</b></td><td>Axon Enterprise</td><td>Industrials</td><td><span class="pill pill-amber">271</span></td><td>$412.81</td><td><span class="pill pill-muted">Large</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Notable large-caps losing today with high P/E</div>
+      <table>
+        <thead><tr><th>Ticker</th><th>Company</th><th>Sector</th><th>P/E</th><th>Change</th><th>Price</th><th>Cap</th></tr></thead>
+        <tbody>
+          <tr><td><b>ABBV</b></td><td>AbbVie</td><td>Healthcare</td><td>88.44</td><td><span class="pill pill-red">-2.86%</span></td><td>$208.84</td><td><span class="pill pill-blue">Mega</span></td></tr>
+          <tr><td><b>ARM</b></td><td>Arm Holdings ADR</td><td>Technology</td><td>198.68</td><td><span class="pill pill-red">-3.84%</span></td><td>$149.11</td><td><span class="pill pill-muted">Large</span></td></tr>
+          <tr><td><b>AXON</b></td><td>Axon Enterprise</td><td>Industrials</td><td>270.68</td><td><span class="pill pill-red">-2.54%</span></td><td>$412.81</td><td><span class="pill pill-muted">Large</span></td></tr>
+          <tr><td><b>ALNY</b></td><td>Alnylam Pharmaceuticals</td><td>Healthcare</td><td>141.27</td><td><span class="pill pill-red">-3.01%</span></td><td>$318.85</td><td><span class="pill pill-muted">Large</span></td></tr>
+          <tr><td><b>APLS</b></td><td>Apellis Pharmaceuticals</td><td>Healthcare</td><td>327.21</td><td><span class="pill pill-red">-1.20%</span></td><td>$40.41</td><td><span class="pill pill-muted">Mid</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL: OUTLIERS ═══ -->
+  <div id="outliers" class="panel">
+    <div class="insight">18 tickers with |z-score| &gt; 3 on daily % change. Gainers skew higher in magnitude (max z = 10.46) vs losers (min = -5.73). Nearly all are micro caps or unleveraged ETFs — classic speculative day-session behavior. Volume was extraordinary for AIXI (218M) and BDRX (121M).</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Z-score of daily % change — extreme movers (|z|&gt;3)</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="c_zscore"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Outlier detail</div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Ticker</th><th>Company</th><th>Sector</th><th>Change</th><th>Z-Score</th><th>Volume</th><th>Cap</th></tr></thead>
+          <tbody>
+            <tr><td><b>BDRX</b></td><td>Biodexa Pharma ADR</td><td>Healthcare</td><td><span class="pill pill-green">+42.23%</span></td><td>10.46</td><td>120.6M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>AAOX</b></td><td>Tradr 2X Long AAOI ETF</td><td>Financial</td><td><span class="pill pill-green">+40.43%</span></td><td>10.01</td><td>2.7M</td><td><span class="pill pill-muted">—</span></td></tr>
+            <tr><td><b>AIXI</b></td><td>Xiao-I Corp ADR</td><td>Technology</td><td><span class="pill pill-green">+33.10%</span></td><td>8.18</td><td>218.5M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ATPC</b></td><td>Agape ATP Corp</td><td>Consumer Def.</td><td><span class="pill pill-green">+25.79%</span></td><td>6.35</td><td>0.45M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ASTX</b></td><td>Tradr 2X Long ASTS ETF</td><td>Financial</td><td><span class="pill pill-green">+20.73%</span></td><td>5.09</td><td>2.9M</td><td><span class="pill pill-muted">—</span></td></tr>
+            <tr><td><b>AAOI</b></td><td>Applied Optoelectronics</td><td>Technology</td><td><span class="pill pill-green">+20.34%</span></td><td>4.99</td><td>19.8M</td><td><span class="pill pill-muted">Mid</span></td></tr>
+            <tr><td><b>AERT</b></td><td>Aeries Technology</td><td>Industrials</td><td><span class="pill pill-green">+19.25%</span></td><td>4.72</td><td>0.84M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>AIRS</b></td><td>Airsculpt Technologies</td><td>Healthcare</td><td><span class="pill pill-green">+16.12%</span></td><td>3.94</td><td>3.4M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>AIB</b></td><td>BlockchAIn Digital Infra</td><td>Technology</td><td><span class="pill pill-green">+16.00%</span></td><td>3.91</td><td>0.56M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>AGPU</b></td><td>Axe Compute</td><td>Technology</td><td><span class="pill pill-green">+14.33%</span></td><td>3.49</td><td>8.2M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ADV</b></td><td>Advantage Solutions</td><td>Comm. Services</td><td><span class="pill pill-green">+13.34%</span></td><td>3.25</td><td>0.07M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>AKO-A</b></td><td>Embotelladora Andina ADR</td><td>Consumer Def.</td><td><span class="pill pill-green">+12.71%</span></td><td>3.09</td><td>0.002M</td><td><span class="pill pill-muted">Small</span></td></tr>
+            <tr><td><b>ADTX</b></td><td>Aditxt</td><td>Healthcare</td><td><span class="pill pill-red">-11.72%</span></td><td>-3.01</td><td>0.80M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ADAG</b></td><td>Adagene ADR</td><td>Healthcare</td><td><span class="pill pill-red">-13.45%</span></td><td>-3.44</td><td>1.2M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ANGO</b></td><td>Angiodynamic</td><td>Healthcare</td><td><span class="pill pill-red">-13.65%</span></td><td>-3.49</td><td>1.2M</td><td><span class="pill pill-muted">Small</span></td></tr>
+            <tr><td><b>ARAI</b></td><td>Arrive AI</td><td>Technology</td><td><span class="pill pill-red">-16.25%</span></td><td>-4.14</td><td>0.67M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+            <tr><td><b>ASTN</b></td><td>Defiance 2X Short ASTS ETF</td><td>Financial</td><td><span class="pill pill-red">-21.24%</span></td><td>-5.38</td><td>3.0M</td><td><span class="pill pill-muted">—</span></td></tr>
+            <tr><td><b>AIIO</b></td><td>Robo.ai</td><td>Consumer Cyc.</td><td><span class="pill pill-red">-22.65%</span></td><td>-5.73</td><td>5.6M</td><td><span class="pill pill-muted">Micro</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL: FEATURES ═══ -->
+  <div id="features" class="panel">
+    <div class="grid-2">
+      <div class="card col-span-2">
+        <div class="card-title">Correlation matrix — numeric features</div>
+        <table class="corr-matrix" id="corr_tbl"></table>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card col-span-2">
+        <div class="card-title">Avg % change by country (min 3 tickers)</div>
+        <div id="country_bars" style="margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="insight" style="margin-top:4px">
+      Strongest correlation: Volume ↔ Change (r=0.38). High-volume days tend to produce larger price swings. Price ↔ Market Cap (r=0.17) and Volume ↔ Market Cap (r=0.17) are weak-positive. P/E has a slight negative correlation with Change (-0.11), suggesting lower-valued stocks outperformed today. All other pairs are near zero — features are largely independent.
+    </div>
+  </div>
+
+  <footer>
+    <span>Finviz market snapshot · April 3, 2026</span>
+    <span>1,000 tickers · 11 sectors · 29 countries </span>
+  </footer>
+</div>
+
+<script>
+/* ── HELPERS ── */
+function switchTab(id) {
+  const ids = ['overview','sectors','movers','industry','pe','outliers','features'];
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ids[i] === id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+}
+
+const G = '#00d68f', R = '#ff4d6a', B = '#3b8eff', A = '#ffb347', P = '#a78bfa', T = '#22d3ee';
+const GRID = { color: 'rgba(255,255,255,0.04)' };
+const TICK = { color: '#3d4f5e', font: { family: "'JetBrains Mono', monospace", size: 10 } };
+
+Chart.defaults.color = '#3d4f5e';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+
+function mkChart(id, cfg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  return new Chart(el, cfg);
+}
+
+function barRows(container, data, maxAbs, showSign=true) {
+  const div = document.getElementById(container);
+  if (!div) return;
+  data.forEach(([lbl, val, leftAlign]) => {
+    const pct = (Math.abs(val) / maxAbs * 100).toFixed(1);
+    const col = val >= 0 ? G : R;
+    const sign = showSign ? (val >= 0 ? '+' : '') : '';
+    div.innerHTML += `<div class="bar-row">
+      <div class="bar-lbl ${leftAlign ? 'bar-lbl-left' : ''}">${lbl}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="bar-num" style="color:${col}">${sign}${val.toFixed(2)}%</div>
+    </div>`;
+  });
+}
+
+/* ── OVERVIEW ── */
+mkChart('c_breadth', { type:'doughnut', data:{ labels:['Gainers','Losers','Flat'], datasets:[{ data:[529,430,36], backgroundColor:[G,R,'#3d4f5e'], borderWidth:0, hoverOffset:4 }] }, options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ display:false } } } });
+
+mkChart('c_cap', { type:'doughnut', data:{ labels:['Unknown','Micro','Small','Mid','Large','Mega'], datasets:[{ data:[357,228,183,130,91,11], backgroundColor:[B,T,A,R,P,G], borderWidth:0, hoverOffset:4 }] }, options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ display:false } } } });
+
+mkChart('c_pricebands', { type:'bar', data:{ labels:['Penny\n<$5','Very Low\n$5-20','Low\n$20-50','Mid\n$50-100','High\n$100-200','Very High\n$200-500','Ultra High\n>$500'], datasets:[{ data:[186,256,334,112,68,35,4], backgroundColor:[B,B,B,B,B,B,B].map((c,i)=>i===2?G:B), borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ ...TICK, maxRotation:0 }, grid:GRID }, y:{ ticks:TICK, grid:GRID } } } });
+
+mkChart('c_cap_change', { type:'bar', data:{ labels:['Micro','Small','Mid','Unknown','Large','Mega'], datasets:[{ data:[0.690,0.514,0.345,0.067,0.104,-0.377], backgroundColor:[0.690,0.514,0.345,0.067,0.104,-0.377].map(v=>v>=0?G:R), borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ ...TICK, maxRotation:30 }, grid:GRID }, y:{ ticks:{ ...TICK, callback:v=>v.toFixed(2)+'%' }, grid:GRID } } } });
+
+mkChart('c_priceseg', { type:'bar', data:{ labels:['Penny\n(<$5)','Mid\n($20-100)','High\n(>$100)'], datasets:[{ label:'Avg Change %', data:[0.93,0.31,0.02], backgroundColor:[G,B,A], borderWidth:0, borderRadius:4 },{ label:'Std Dev %', data:[6.90,2.30,2.84], backgroundColor:['rgba(0,214,143,0.25)','rgba(59,142,255,0.25)','rgba(255,179,71,0.25)'], borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:TICK, grid:GRID }, y:{ ticks:{ ...TICK, callback:v=>v+'%' }, grid:GRID } } } });
+
+mkChart('c_vol_band', { type:'bar', data:{ labels:['Penny','V.Low','Low','Mid','High','V.High','Ultra'], datasets:[{ data:[6.90,2.80,2.10,1.90,2.84,2.60,1.50], backgroundColor:A, borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:TICK, grid:GRID }, y:{ ticks:{ ...TICK, callback:v=>v+'%' }, grid:GRID } } } });
+
+/* ── SECTORS ── */
+const secLabels = ['Consumer Def.','Comm. Services','Technology','Energy','Real Estate','Healthcare','Basic Mat.','Financial','Industrials','Utilities','Consumer Cyc.'];
+const secChange = [3.31,1.35,1.32,1.29,0.86,0.39,0.31,0.14,-0.10,-0.17,-1.51];
+const secWR     = [65.0,52.4,62.6,61.5,65.5,51.0,42.4,55.6,41.6,63.6,20.4];
+const secVol    = [2.87,2.64,5.56,5.87,1.59,1.79,2.30,0.63,1.83,1.98,1.89];
+const secCount  = [20,21,99,13,29,155,33,493,77,11,49];
+
+mkChart('c_sector_chg', { type:'bar', data:{ labels:secLabels, datasets:[{ data:secChange, backgroundColor:secChange.map(v=>v>=0?G:R), borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ ...TICK, maxRotation:25 }, grid:GRID }, y:{ ticks:{ ...TICK, callback:v=>v+'%' }, grid:GRID } } } });
+
+mkChart('c_sector_wr', { type:'bar', data:{ labels:secLabels, datasets:[{ data:secWR, backgroundColor:secWR.map(v=>v>=50?B:R), borderWidth:0, borderRadius:4 }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ min:0,max:100, ticks:{ ...TICK, callback:v=>v+'%' }, grid:GRID }, y:{ ticks:TICK, grid:GRID } } } });
+
+mkChart('c_sector_vol', { type:'bar', data:{ labels:secLabels, datasets:[{ data:secVol, backgroundColor:T, borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ ...TICK, maxRotation:25 }, grid:GRID }, y:{ ticks:{ ...TICK, callback:v=>v+'M' }, grid:GRID } } } });
+
+const sc_div = document.getElementById('sector_count_bars');
+const sc_max = 493;
+secLabels.forEach((l,i) => {
+  const pct = (secCount[i]/sc_max*100).toFixed(1);
+  sc_div.innerHTML += `<div class="bar-row"><div class="bar-lbl">${l}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${B}"></div></div><div class="bar-num" style="color:var(--text2)">${secCount[i]}</div></div>`;
+});
+
+/* ── MOVERS: volume ── */
+const volData = [['AIXI (+33.1%)',218.5,1],['BDRX (+42.2%)',120.6,1],['AAL (-2.6%)',52.7,0],['BATL (+9.4%)',43.5,1],['ABEV (-1.4%)',43.0,0],['AMC (+8.7%)',40.9,1],['AMD (+3.5%)',38.3,1],['AMZN (-0.4%)',31.3,0],['AAPL (+0.1%)',31.1,1],['BBD (-1.9%)',29.5,0]];
+const vol_max = 218.5;
+const vDiv = document.getElementById('vol_bars');
+volData.forEach(([l,v,pos]) => {
+  const pct = (v/vol_max*100).toFixed(1);
+  const col = pos ? G : R;
+  vDiv.innerHTML += `<div class="bar-row"><div class="bar-lbl">${l}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div><div class="bar-num" style="color:${col}">${v.toFixed(1)}M</div></div>`;
+});
+
+/* ── INDUSTRY ── */
+const topInd = [['Comm. Equipment',4.274],['Oil & Gas E&P',4.114],['Entertainment',3.445],['Medical Care',2.737],['Capital Markets',2.487],['Semi Equipment',2.068],['Semiconductors',1.828],['IT Services',1.754],['Software Infra',1.747],['Credit Services',1.568]];
+const botInd = [['Engineering & Const.',-0.315],['Gold',-0.336],['Med. Instruments',-0.391],['Closed-End Debt',-0.516],['Specialty Chem.',-0.586],['Farm Machinery',-1.004],['Specialty Retail',-1.585],['Building Products',-1.629],['Auto Parts',-1.689],['Electrical Equip.',-2.225]];
+const maxTop = 4.274, maxBot = 2.225;
+const itDiv = document.getElementById('ind_top_bars');
+topInd.forEach(([l,v]) => { const p=(v/maxTop*100).toFixed(1); itDiv.innerHTML+=`<div class="bar-row"><div class="bar-lbl">${l}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${G}"></div></div><div class="bar-num" style="color:${G}">+${v.toFixed(2)}%</div></div>`; });
+const ibDiv = document.getElementById('ind_bot_bars');
+botInd.forEach(([l,v]) => { const p=(Math.abs(v)/maxBot*100).toFixed(1); ibDiv.innerHTML+=`<div class="bar-row"><div class="bar-lbl">${l}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${R}"></div></div><div class="bar-num" style="color:${R}">${v.toFixed(2)}%</div></div>`; });
+
+const indWR = [['Comm. Equipment',77.8],['Oil & Gas E&P',80.0],['Entertainment',87.5],['Medical Care',60.0],['Capital Markets',57.1],['Semi Equipment',60.0],['Semiconductors',54.5],['IT Services',71.4],['Software Infra',81.0],['Credit Services',66.7]];
+mkChart('c_ind_wr', { type:'bar', data:{ labels:indWR.map(d=>d[0]), datasets:[{ data:indWR.map(d=>d[1]), backgroundColor:indWR.map(d=>d[1]>=50?B:R), borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ ...TICK, maxRotation:30 }, grid:GRID }, y:{ min:0,max:100, ticks:{ ...TICK, callback:v=>v+'%' }, grid:GRID } } } });
+
+/* ── P/E ── */
+const peSec  = ['Comm. Services','Financial','Real Estate','Consumer Def.','Consumer Cyc.','Energy','Industrials','Utilities','Basic Mat.','Healthcare','Technology'];
+const peMed  = [9.29,12.84,17.97,18.05,18.17,18.96,23.32,21.96,24.40,25.24,37.92];
+mkChart('c_pe_sector', { type:'bar', data:{ labels:peSec, datasets:[{ data:peMed, backgroundColor:P, borderWidth:0, borderRadius:4 }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:TICK, grid:GRID }, y:{ ticks:TICK, grid:GRID } } } });
+
+/* ── OUTLIERS ── */
+const oTick  = ['BDRX','AAOX','AIXI','ATPC','ASTX','AAOI','AERT','AIRS','AIB','AGPU','ADV','AKO-A','ADTX','ADAG','ANGO','ARAI','ASTN','AIIO'];
+const oZ     = [10.46,10.01,8.18,6.35,5.09,4.99,4.72,3.94,3.91,3.49,3.25,3.09,-3.01,-3.44,-3.49,-4.14,-5.38,-5.73];
+mkChart('c_zscore', { type:'bar', data:{ labels:oTick, datasets:[{ data:oZ, backgroundColor:oZ.map(v=>v>0?G:R), borderWidth:0, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => ` z = ${ctx.raw.toFixed(2)}σ` } } }, scales:{ x:{ ticks:{ ...TICK, maxRotation:40 }, grid:GRID }, y:{ ticks:{ ...TICK, callback:v=>v+'σ' }, grid:GRID } } } });
+
+/* ── FEATURES: correlation matrix ── */
+const corrHeaders = ['','Price','Change','Volume','P/E','Mkt Cap'];
+const corrVals = [
+  ['Price',   1.000,-0.036, 0.003,-0.029, 0.165],
+  ['Change', -0.036, 1.000, 0.381,-0.113,-0.016],
+  ['Volume',  0.003, 0.381, 1.000,-0.029, 0.168],
+  ['P/E',    -0.029,-0.113,-0.029, 1.000,-0.015],
+  ['Mkt Cap', 0.165,-0.016, 0.168,-0.015, 1.000],
+];
+function corrBg(v) {
+  if (v === 1.000) return 'rgba(255,255,255,0.04)';
+  if (v > 0.3)  return 'rgba(0,214,143,0.18)';
+  if (v < -0.1) return 'rgba(255,77,106,0.15)';
+  return 'transparent';
+}
+function corrFg(v) {
+  if (v === 1.000) return '#3d4f5e';
+  if (v > 0.3)  return G;
+  if (v < -0.1) return R;
+  return '#7a8a99';
+}
+const ct = document.getElementById('corr_tbl');
+let html = '<tr>' + corrHeaders.map(h => `<th>${h}</th>`).join('') + '</tr>';
+corrVals.forEach(row => {
+  html += '<tr><td style="color:var(--text2);text-align:left;font-size:11px">' + row[0] + '</td>';
+  row.slice(1).forEach(v => {
+    html += `<td style="background:${corrBg(v)};color:${corrFg(v)};border-radius:4px">${v.toFixed(3)}</td>`;
+  });
+  html += '</tr>';
+});
+ct.innerHTML = html;
+
+/* ── FEATURES: country bars ── */
+const countryData = [['Singapore (4)',8.60],['Bermuda (4)',1.78],['Luxembourg (5)',1.95],['Israel (4)',1.73],['Malaysia (4)',3.40],['UK (14)',2.85],['Chile (3)',2.92],['China (19)',0.55],['Hong Kong (9)',0.43],['Brazil (8)',0.37],['USA (859)',0.28],['Canada (26)',0.14],['Ireland (7)',-1.02],['Taiwan (4)',-1.04],['Switzerland (8)',-1.67]];
+countryData.sort((a,b)=>b[1]-a[1]);
+const cMax = Math.max(...countryData.map(d=>Math.abs(d[1])));
+const cDiv = document.getElementById('country_bars');
+countryData.forEach(([l,v]) => {
+  const p=(Math.abs(v)/cMax*100).toFixed(1);
+  const col=v>=0?G:R;
+  cDiv.innerHTML+=`<div class="bar-row"><div class="bar-lbl">${l}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${col}"></div></div><div class="bar-num" style="color:${col}">${v>=0?'+':''}${v.toFixed(2)}%</div></div>`;
+});
+</script>
+</body>
+</html>
